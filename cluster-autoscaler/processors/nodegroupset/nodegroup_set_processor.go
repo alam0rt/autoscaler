@@ -19,6 +19,7 @@ package nodegroupset
 import (
 	"fmt"
 
+	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/autoscaler/cluster-autoscaler/cloudprovider"
 	"k8s.io/autoscaler/cluster-autoscaler/context"
 	"k8s.io/autoscaler/cluster-autoscaler/utils/errors"
@@ -35,6 +36,8 @@ type ScaleUpInfo struct {
 	NewSize int
 	// MaxSize is the maximum allowed size of the Group
 	MaxSize int
+	// AverageAllocatableResources is the average allocatable resource of the Group (either cpu or memory depending on flag)
+	AverageAllocatableResources int
 }
 
 // String is used for printing ScaleUpInfo for logging, etc
@@ -42,12 +45,17 @@ func (s ScaleUpInfo) String() string {
 	return fmt.Sprintf("{%v %v->%v (max: %v)}", s.Group.Id(), s.CurrentSize, s.NewSize, s.MaxSize)
 }
 
+// AllocatableResources is the amount of resources this group can allocate (either cpu or memory depending on flag)
+func (s ScaleUpInfo) AllocatableResources() int {
+	return s.AverageAllocatableResources * s.NewSize
+}
+
 // NodeGroupSetProcessor finds nodegroups that are similar and allows balancing scale-up between them.
 type NodeGroupSetProcessor interface {
 	FindSimilarNodeGroups(context *context.AutoscalingContext, nodeGroup cloudprovider.NodeGroup,
 		nodeInfosForGroups map[string]*schedulerframework.NodeInfo) ([]cloudprovider.NodeGroup, errors.AutoscalerError)
 
-	BalanceScaleUpBetweenGroups(context *context.AutoscalingContext, groups []cloudprovider.NodeGroup, newNodes int) ([]ScaleUpInfo, errors.AutoscalerError)
+	BalanceScaleUpBetweenGroups(context *context.AutoscalingContext, groups []cloudprovider.NodeGroup, newNodes int, nodes []*apiv1.Node) ([]ScaleUpInfo, errors.AutoscalerError)
 	CleanUp()
 }
 
