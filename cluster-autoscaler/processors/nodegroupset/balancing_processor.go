@@ -17,6 +17,7 @@ limitations under the License.
 package nodegroupset
 
 import (
+	"fmt"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sort"
 
@@ -26,6 +27,12 @@ import (
 	"k8s.io/autoscaler/cluster-autoscaler/utils/errors"
 	klog "k8s.io/klog/v2"
 	schedulerframework "k8s.io/kubernetes/pkg/scheduler/framework"
+)
+
+const (
+	BalanceByCpu    string = "cpu"
+	BalanceByMemory string = "memory"
+	BalanceByCount  string = "count"
 )
 
 // BalancingNodeGroupSetProcessor tries to keep similar node groups balanced on scale-up.
@@ -194,7 +201,7 @@ func (b *BalancingNodeGroupSetProcessor) averageNodegroupAllocatableResources(co
 	nodegroupCounts := map[string]int{}
 	fallback := 0
 
-	if context.BalanceSimilarNodeGroupsBy == "cpu" || context.BalanceSimilarNodeGroupsBy == "memory" {
+	if context.BalanceSimilarNodeGroupsBy == BalanceByCpu || context.BalanceSimilarNodeGroupsBy == BalanceByMemory {
 		for _, ng := range groups {
 			averageNodegroupCapacities[ng.Id()] = 0
 			nodegroupCounts[ng.Id()] = 0
@@ -229,8 +236,10 @@ func (b *BalancingNodeGroupSetProcessor) averageNodegroupAllocatableResources(co
 				fallback = averageNodegroupCapacities[ng.Id()]
 			}
 		}
-	} else {
+	} else if context.BalanceSimilarNodeGroupsBy == BalanceByCount || context.BalanceSimilarNodeGroupsBy == "" {
 		// do nothing: fallback will set everything to 1
+	} else {
+		panic(fmt.Sprintf("Unknown balance option %v", context.BalanceSimilarNodeGroupsBy))
 	}
 
 	// use fallback
