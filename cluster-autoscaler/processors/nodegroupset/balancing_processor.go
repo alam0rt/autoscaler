@@ -109,11 +109,11 @@ func (b *BalancingNodeGroupSetProcessor) BalanceScaleUpBetweenGroups(
 			continue
 		}
 		info := ScaleUpInfo{
-			Group:                       ng,
-			CurrentSize:                 currentSize,
-			NewSize:                     currentSize,
-			MaxSize:                     maxSize,
-			AverageAllocatableResources: averageAllocatableResources[ng.Id()],
+			Group:       ng,
+			CurrentSize: currentSize,
+			NewSize:     currentSize,
+			MaxSize:     maxSize,
+			Weight:      averageAllocatableResources[ng.Id()],
 		}
 		scaleUpInfos = append(scaleUpInfos, info)
 		if maxSize-currentSize > 0 {
@@ -144,7 +144,7 @@ func (b *BalancingNodeGroupSetProcessor) BalanceScaleUpBetweenGroups(
 	// 5. startIndex <= i < j < currentIndex -> scaleUpInfos[i].CurrentSize == scaleUpInfos[j].CurrentSize
 	// 6. startIndex <= i < currentIndex <= j -> scaleUpInfos[i].CurrentSize <= scaleUpInfos[j].CurrentSize + 1
 	sort.Slice(scaleUpInfos, func(i, j int) bool {
-		return scaleUpInfos[i].AllocatableResources() < scaleUpInfos[j].AllocatableResources()
+		return scaleUpInfos[i].TotalWeight() < scaleUpInfos[j].TotalWeight()
 	})
 	startIndex := 0
 	currentIndex := 0
@@ -169,7 +169,7 @@ func (b *BalancingNodeGroupSetProcessor) BalanceScaleUpBetweenGroups(
 		// If we removed a group in this loop currentIndex may be equal to startIndex-1,
 		// in which case both branches of below if will make currentIndex == startIndex.
 		if currentIndex < len(scaleUpInfos)-1 &&
-			currentInfo.AllocatableResources() > scaleUpInfos[currentIndex+1].AllocatableResources() {
+			currentInfo.TotalWeight() > scaleUpInfos[currentIndex+1].TotalWeight() {
 			// Next group has exactly one less node, than current one.
 			// We will increase it in next iteration.
 			currentIndex++
