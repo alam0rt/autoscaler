@@ -82,6 +82,19 @@ func basicSimilarNodeGroupsTest(
 	assert.Equal(t, []cloudprovider.NodeGroup{}, similar)
 }
 
+func setupAllocatableTest(by string, nodegroupNames []string) (*context.AutoscalingContext, *testprovider.TestCloudProvider, []cloudprovider.NodeGroup) {
+	context := &context.AutoscalingContext{}
+	context.BalanceSimilarNodeGroupsBy = by
+
+	provider := testprovider.NewTestCloudProvider(nil, nil)
+	nodegroups := []cloudprovider.NodeGroup{}
+	for _, nodegroupName := range nodegroupNames {
+		nodegroups = append(nodegroups, provider.BuildNodeGroup(nodegroupName, 1, 1, 1, false, "", nil))
+	}
+
+	return context, provider, nodegroups
+}
+
 func TestFindSimilarNodeGroups(t *testing.T) {
 	context := &context.AutoscalingContext{}
 	ni1, ni2, ni3 := buildBasicNodeGroups(context)
@@ -263,33 +276,25 @@ func TestBalanceHittingMaxSize(t *testing.T) {
 }
 
 func TestAverageNodegroupAllocatableResourcesBalancesEmpty(t *testing.T) {
-	context := &context.AutoscalingContext{}
-	context.BalanceSimilarNodeGroupsBy = "cpu"
+	context, _, nodegroups := setupAllocatableTest("count", []string{})
+
+	nodes := []*apiv1.Node{}
+
 	processor := BalancingNodeGroupSetProcessor{}
-	averages := processor.averageNodegroupAllocatableResources(context, []cloudprovider.NodeGroup{}, []*apiv1.Node{})
+	averages := processor.averageNodegroupAllocatableResources(context, nodegroups, nodes)
 	assert.Equal(t, map[string]int{}, averages)
 }
 
 func TestAverageNodegroupAllocatableResourcesFallsBackTo1WhenNoNodesWereFound(t *testing.T) {
-	context := &context.AutoscalingContext{}
-	context.BalanceSimilarNodeGroupsBy = "cpu"
-	provider := testprovider.NewTestCloudProvider(nil, nil)
-
-	nodeGroup := provider.BuildNodeGroup("ng1", 1, 1, 1, false, "", nil)
-	nodeGroups := []cloudprovider.NodeGroup{nodeGroup}
+	context, _, nodegroups := setupAllocatableTest("cpu", []string{"ng1"})
 
 	processor := BalancingNodeGroupSetProcessor{}
-	averages := processor.averageNodegroupAllocatableResources(context, nodeGroups, []*apiv1.Node{})
+	averages := processor.averageNodegroupAllocatableResources(context, nodegroups, []*apiv1.Node{})
 	assert.Equal(t, map[string]int{"ng1": 1}, averages)
 }
 
 func TestAverageNodegroupAllocatableResourcesFillsAverages(t *testing.T) {
-	context := &context.AutoscalingContext{}
-	context.BalanceSimilarNodeGroupsBy = "cpu"
-	provider := testprovider.NewTestCloudProvider(nil, nil)
-
-	nodeGroup := provider.BuildNodeGroup("ng1", 1, 1, 1, false, "", nil)
-	nodegroups := []cloudprovider.NodeGroup{nodeGroup}
+	context, provider, nodegroups := setupAllocatableTest("cpu", []string{"ng1"})
 
 	n1 := BuildTestNode("n1", 2500, 1000)
 	provider.AddNode("ng1", n1)
@@ -302,13 +307,7 @@ func TestAverageNodegroupAllocatableResourcesFillsAverages(t *testing.T) {
 }
 
 func TestAverageNodegroupAllocatableResourcesFallsBackEmptyNodegroupToOtherAverage(t *testing.T) {
-	context := &context.AutoscalingContext{}
-	context.BalanceSimilarNodeGroupsBy = "cpu"
-	provider := testprovider.NewTestCloudProvider(nil, nil)
-
-	ng1 := provider.BuildNodeGroup("ng1", 1, 1, 1, false, "", nil)
-	ng2 := provider.BuildNodeGroup("ng2", 1, 1, 1, false, "", nil)
-	nodegroups := []cloudprovider.NodeGroup{ng1, ng2}
+	context, provider, nodegroups := setupAllocatableTest("cpu", []string{"ng1", "ng2"})
 
 	n1 := BuildTestNode("n1", 2500, 1000)
 	provider.AddNode("ng1", n1)
@@ -320,12 +319,7 @@ func TestAverageNodegroupAllocatableResourcesFallsBackEmptyNodegroupToOtherAvera
 }
 
 func TestAverageNodegroupAllocatableResourcesWorksWithCounts(t *testing.T) {
-	context := &context.AutoscalingContext{}
-	context.BalanceSimilarNodeGroupsBy = "count"
-	provider := testprovider.NewTestCloudProvider(nil, nil)
-
-	nodeGroup := provider.BuildNodeGroup("ng1", 1, 1, 1, false, "", nil)
-	nodegroups := []cloudprovider.NodeGroup{nodeGroup}
+	context, provider, nodegroups := setupAllocatableTest("count", []string{"ng1"})
 
 	n1 := BuildTestNode("n1", 2500, 1000)
 	provider.AddNode("ng1", n1)
@@ -337,12 +331,7 @@ func TestAverageNodegroupAllocatableResourcesWorksWithCounts(t *testing.T) {
 }
 
 func TestAverageNodegroupAllocatableResourcesWorksWithMemory(t *testing.T) {
-	context := &context.AutoscalingContext{}
-	context.BalanceSimilarNodeGroupsBy = "memory"
-	provider := testprovider.NewTestCloudProvider(nil, nil)
-
-	nodeGroup := provider.BuildNodeGroup("ng1", 1, 1, 1, false, "", nil)
-	nodegroups := []cloudprovider.NodeGroup{nodeGroup}
+	context, provider, nodegroups := setupAllocatableTest("memory", []string{"ng1"})
 
 	n1 := BuildTestNode("n1", 2500, 1000)
 	provider.AddNode("ng1", n1)
