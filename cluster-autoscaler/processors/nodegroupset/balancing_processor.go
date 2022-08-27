@@ -199,7 +199,6 @@ func (b *BalancingNodeGroupSetProcessor) averageNodegroupAllocatableResources(co
 	// collect info
 	averageNodegroupCapacities := map[string]int{}
 	nodegroupCounts := map[string]int{}
-	fallback := 0
 
 	if context.BalanceSimilarNodeGroupsBy == BalanceByCpu || context.BalanceSimilarNodeGroupsBy == BalanceByMemory {
 		for _, ng := range groups {
@@ -207,7 +206,7 @@ func (b *BalancingNodeGroupSetProcessor) averageNodegroupAllocatableResources(co
 			nodegroupCounts[ng.Id()] = 0
 			ngNodes, err := ng.Nodes()
 			if err != nil {
-				klog.V(1).Infof("Failed to get nodes from ASG %v: %v", ng.Id(), err)
+				klog.V(1).Infof("Failed to get nodes from NodeGroup %v: %v", ng.Id(), err)
 				continue
 			}
 			for _, n := range nodes {
@@ -227,13 +226,12 @@ func (b *BalancingNodeGroupSetProcessor) averageNodegroupAllocatableResources(co
 			}
 		}
 
-		// calculate average and collect fallback
+		// calculate average
 		for _, ng := range groups {
 			if nodegroupCounts[ng.Id()] == 0 {
-				klog.V(3).Infof("Failed to find nodes for ASG %v: %v", ng.Id())
+				klog.V(3).Infof("Failed to find nodes for NodeGroup %v: %v", ng.Id())
 			} else {
 				averageNodegroupCapacities[ng.Id()] /= nodegroupCounts[ng.Id()]
-				fallback = averageNodegroupCapacities[ng.Id()]
 			}
 		}
 	} else if context.BalanceSimilarNodeGroupsBy == BalanceByCount || context.BalanceSimilarNodeGroupsBy == "" {
@@ -242,11 +240,21 @@ func (b *BalancingNodeGroupSetProcessor) averageNodegroupAllocatableResources(co
 		panic(fmt.Sprintf("Unknown balance option %v", context.BalanceSimilarNodeGroupsBy))
 	}
 
-	// use fallback
+	// fallback missing to average of those not missing
+	fallback := 1
+	foundCapacity := 0
+	foundCount := 0
+	for id, capacity := range averageNodegroupCapacities {
+		if nodegroupCounts[id] != 0 {
+			foundCapacity += capacity
+			foundCount += 1
+		}
+	}
+	if foundCount != 0 {
+		fallback = foundCapacity / foundCount
+	}
 	for _, ng := range groups {
-		if fallback == 0 { // no nodes were found, make all of them equal
-			averageNodegroupCapacities[ng.Id()] = 1
-		} else if nodegroupCounts[ng.Id()] == 0 { // this one group had no nodes
+		if nodegroupCounts[ng.Id()] == 0 {
 			averageNodegroupCapacities[ng.Id()] = fallback
 		}
 	}

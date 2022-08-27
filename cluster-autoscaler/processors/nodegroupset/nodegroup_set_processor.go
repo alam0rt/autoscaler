@@ -36,7 +36,7 @@ type ScaleUpInfo struct {
 	NewSize int
 	// MaxSize is the maximum allowed size of the Group
 	MaxSize int
-	// Weight is the average allocatable resource of the Group (either cpu or memory depending on flag)
+	// Weight is the average allocatable resource of the Group (either cpu, memory, or 1 (for count), depending on flag)
 	Weight int
 }
 
