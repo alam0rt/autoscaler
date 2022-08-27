@@ -213,10 +213,12 @@ func createAutoscalingOptions() config.AutoscalingOptions {
 	if err != nil {
 		klog.Fatalf("Failed to parse flags: %v", err)
 	}
+
 	minMemoryTotal, maxMemoryTotal, err := parseMinMaxFlag(*memoryTotal)
 	if err != nil {
 		klog.Fatalf("Failed to parse flags: %v", err)
 	}
+
 	// Convert memory limits to bytes.
 	minMemoryTotal = minMemoryTotal * units.GiB
 	maxMemoryTotal = maxMemoryTotal * units.GiB
@@ -225,6 +227,11 @@ func createAutoscalingOptions() config.AutoscalingOptions {
 	if err != nil {
 		klog.Fatalf("Failed to parse flags: %v", err)
 	}
+
+	if !nodegroupset.BalanceBySupported[*balanceSimilarNodeGroupsByFlag] {
+		klog.Fatalf("Unsupported value for --balance-similar-node-groups-by: %v", balanceSimilarNodeGroupsByFlag)
+	}
+
 	return config.AutoscalingOptions{
 		NodeGroupDefaults: config.NodeGroupAutoscalingOptions{
 			ScaleDownUtilizationThreshold:    *scaleDownUtilizationThreshold,

@@ -35,6 +35,12 @@ const (
 	BalanceByCount  string = "count"
 )
 
+var BalanceBySupported = map[string]bool{
+	BalanceByCpu:    true,
+	BalanceByMemory: true,
+	BalanceByCount:  true,
+}
+
 // BalancingNodeGroupSetProcessor tries to keep similar node groups balanced on scale-up.
 type BalancingNodeGroupSetProcessor struct {
 	Comparator NodeInfoComparator
